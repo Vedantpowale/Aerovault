@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Loader2 } from "lucide-react"
 
@@ -20,7 +20,7 @@ const ROWS = 20
 const SEATS_PER_ROW = ["A", "B", "C", "D", "E", "F"]
 
 export function SeatMap({ flightId, passengersCount, onSelectionChange }: SeatMapProps) {
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
     const [loading, setLoading] = useState(true)
     const [seatStatuses, setSeatStatuses] = useState<Record<string, SeatStatus>>({})
     const [mySeats, setMySeats] = useState<string[]>([])
@@ -49,10 +49,8 @@ export function SeatMap({ flightId, passengersCount, onSelectionChange }: SeatMa
                 })
                 setSeatStatuses(map)
                 setMySeats(mine)
-                // Use setTimeout to ensure this update happens after the render cycle is complete
-                setTimeout(() => {
-                    onSelectionChange(mine)
-                }, 0)
+                // Notify parent of initial selection
+                onSelectionChange(mine)
             }
             setLoading(false)
         }
@@ -111,11 +109,10 @@ export function SeatMap({ flightId, passengersCount, onSelectionChange }: SeatMa
                 .eq('user_id', userId) // Security measure
 
             if (!error) {
-                setMySeats(prev => {
-                    const next = prev.filter(s => s !== seatNum)
-                    onSelectionChange(next)
-                    return next
-                })
+                const nextMySeats = mySeats.filter(s => s !== seatNum)
+                setMySeats(nextMySeats)
+                onSelectionChange(nextMySeats)
+
                 setSeatStatuses(prev => {
                     const next = { ...prev }
                     delete next[seatNum]
@@ -157,11 +154,10 @@ export function SeatMap({ flightId, passengersCount, onSelectionChange }: SeatMa
             } else {
                 const newStatus: SeatStatus = { seat_number: seatNum, status: 'locked', user_id: userId }
                 setSeatStatuses(prev => ({ ...prev, [seatNum]: newStatus }))
-                setMySeats(prev => {
-                    const next = [...prev, seatNum]
-                    onSelectionChange(next)
-                    return next
-                })
+
+                const nextMySeats = [...mySeats, seatNum]
+                setMySeats(nextMySeats)
+                onSelectionChange(nextMySeats)
             }
         }
     }

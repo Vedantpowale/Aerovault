@@ -8,6 +8,7 @@ import { SeatMap } from "./seat-map"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/utils/supabase/client"
+import { generateTicketId, generateInvoiceNumber } from "@/utils/generate-ids"
 import { Loader2 } from "lucide-react"
 
 interface BookingWizardProps {
@@ -54,6 +55,11 @@ export function BookingWizard({ flight, currentUser }: BookingWizardProps) {
             // 1. Create Booking
             console.log("Creating booking record...")
             const totalPrice = flight.price * passengersCount
+
+            // Generate unique ticket ID and invoice number
+            const ticketId = generateTicketId()
+            const invoiceNumber = generateInvoiceNumber()
+
             const { data: booking, error: bookingError } = await supabase
                 .from('bookings')
                 .insert({
@@ -62,7 +68,9 @@ export function BookingWizard({ flight, currentUser }: BookingWizardProps) {
                     status: 'confirmed',
                     meal_selected: false,
                     seats: passengersCount,
-                    total_price: totalPrice
+                    total_price: totalPrice,
+                    ticket_id: ticketId,
+                    invoice_number: invoiceNumber
                 })
                 .select()
                 .single()
@@ -111,8 +119,8 @@ export function BookingWizard({ flight, currentUser }: BookingWizardProps) {
                 console.error("Seat update error", seatsError)
             }
 
-            alert("Booking Confirmed! ✈️")
-            router.push('/dashboard') // Make sure this route exists
+            alert(`Booking Confirmed! ✈️\nTicket ID: ${ticketId}`)
+            router.push('/dashboard/my-tickets')
         } catch (err) {
             console.error("Unexpected booking error:", err)
             alert("An unexpected error occurred. Please try again.")

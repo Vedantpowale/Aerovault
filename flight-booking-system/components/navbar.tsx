@@ -5,15 +5,18 @@ import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Plane, User, LogOut } from "lucide-react"
+import { Plane, User, LogOut, Ticket } from "lucide-react"
 
 export default function Navbar() {
     const pathname = usePathname()
 
     const [user, setUser] = useState<any>(null)
+    const [mounted, setMounted] = useState(false)
     const supabase = createClient()
 
     useEffect(() => {
+        setMounted(true)
+
         const checkUser = async () => {
             const { data } = await supabase.auth.getUser()
             setUser(data.user)
@@ -57,11 +60,18 @@ export default function Navbar() {
                         <Link href="/tracker" className="text-gray-700 hover:text-blue-600 transition-colors font-medium flex items-center gap-1">
                             <Plane className="h-4 w-4" /> Live Status
                         </Link>
+                        {mounted && user && (
+                            <Link href="/dashboard/my-tickets" className="text-gray-700 hover:text-blue-600 transition-colors font-medium flex items-center gap-1">
+                                <Ticket className="h-4 w-4" /> My Tickets
+                            </Link>
+                        )}
                     </div>
 
                     {/* Auth Buttons */}
                     <div className="flex items-center space-x-4">
-                        {user ? (
+                        {!mounted ? (
+                            <div className="h-10 w-32" />
+                        ) : user ? (
                             <>
                                 <Button variant="ghost" size="icon">
                                     <User className="h-5 w-5" />
