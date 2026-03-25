@@ -1,0 +1,28 @@
+{
+  "name": "aerovault-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon --watch src --ext ts --exec tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "seed:accounts": "node scripts/setup-accounts.js",
+    "seed:roles": "node scripts/seed-roles.js",
+    "seed:demo-user": "node scripts/create-demo-user.js",
+    "verify:login": "node scripts/verify-login.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.46.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.23",
+    "nodemon": "^3.1.10",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.3"
+  }
+}

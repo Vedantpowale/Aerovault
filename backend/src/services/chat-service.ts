@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
-// Initialize the Gemini SDK
+// Moved from frontend API route to backend service for clearer server-side separation.
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 const AIVA_SYSTEM_PROMPT = `
@@ -62,42 +61,27 @@ Tone: Premium airline (like Emirates + Apple mix). Calm, confident, slightly lux
 If something unclear: "I just need a bit more detail to help you better—could you confirm your travel date?"
 `;
 
-export async function POST(req: NextRequest) {
-  try {
-    const { messages } = await req.json();
+export type ChatMessage = {
+  sender: "user" | "bot";
+  text: string;
+};
 
-    if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: "Invalid messages array" }, { status: 400 });
-    }
+export async function generateChatReply(messages: ChatMessage[]) {
+  const formattedHistory = messages.slice(0, -1).map((msg) => ({
+    role: msg.sender === "user" ? "user" : "model",
+    parts: [{ text: msg.text }],
+  }));
 
-    // Format history for Gemini
-    // @google/genai expects an array of { role: 'user' | 'model', parts: [{ text: string }] }
-    const formattedHistory = messages.slice(0, -1).map((msg: any) => ({
-      role: msg.sender === "user" ? "user" : "model",
-      parts: [{ text: msg.text }],
-    }));
+  const latestMessage = messages[messages.length - 1].text;
 
-    const latestMessage = messages[messages.length - 1].text;
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [...formattedHistory, { role: "user", parts: [{ text: latestMessage }] }],
+    config: {
+      systemInstruction: AIVA_SYSTEM_PROMPT,
+      temperature: 0.7,
+    },
+  });
 
-    // Call the Gemini API
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        ...formattedHistory,
-        { role: "user", parts: [{ text: latestMessage }] }
-      ],
-      config: {
-        systemInstruction: AIVA_SYSTEM_PROMPT,
-        temperature: 0.7,
-      }
-    });
-
-    return NextResponse.json({ reply: response.text });
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch response from AIVA." },
-      { status: 500 }
-    );
-  }
+  return response.text;
 }

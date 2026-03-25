@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AeroVault Monorepo
 
-## Getting Started
+This repository uses a monorepo layout with a dedicated Next.js frontend and a dedicated Node.js backend.
 
-First, run the development server:
+## Structure
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```text
+project-root/
+├── frontend/                    # Next.js app for Vercel deployment
+│   ├── public/
+│   ├── src/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── lib/
+│   │   └── utils/
+│   └── package.json
+├── backend/                     # Node.js API/services for Node/Supabase deployment
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   └── utils/
+│   ├── scripts/
+│   └── package.json
+├── database/
+│   ├── migrations/
+│   └── schema/
+├── docs/
+└── package.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Development workflow
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `npm run dev` starts **frontend + backend concurrently**.
+- Frontend hot reload is provided by `next dev`.
+- Backend hot reload is provided by `nodemon + tsx`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Production workflow
 
-## Learn More
+- `npm run build` builds frontend and backend.
+- `npm run start` starts frontend and backend in production mode.
 
-To learn more about Next.js, take a look at the following resources:
+## Environment validation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Startup scripts run `tooling/validate-env.mjs` to ensure required variables exist:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `GEMINI_API_KEY`
+- `AVIATION_STACK_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-## Deploy on Vercel
+## Logging and error handling
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Backend includes:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Structured JSON logging (`backend/src/utils/logger.ts`)
+- Request logging middleware (`backend/src/middleware/request-logger.ts`)
+- Centralized error handling middleware (`backend/src/middleware/error-handler.ts`)
+
+## Deployment notes
+
+### Frontend (Vercel)
+
+- Deploy the `frontend` workspace as a Next.js project.
+- Use `npm run build -w frontend` as build command if needed.
+- Set required environment variables in Vercel project settings.
+
+### Backend (Node server or Supabase)
+
+- Build: `npm run build -w backend`
+- Run: `npm run start -w backend`
+- Health check endpoint: `GET /api/health`
+- API endpoints:
+  - `POST /api/chat`
+  - `GET /api/tracker`
