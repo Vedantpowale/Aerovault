@@ -343,7 +343,7 @@ export default async function AdminDashboard() {
                                 <CardContent>
                                     {airlinesList.length > 0 ? (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                            {airlinesList.map((a: any) => {
+                                            {airlinesList.filter((a: any) => a.airline_id).map((a: any) => {
                                                 const airlineBookings = allBookings.filter((b: any) => b.flight?.company?.company_name === a.company?.company_name)
                                                 const airlineRevenue = airlineBookings.filter((b: any) => b.status === 'confirmed').reduce((sum: number, b: any) => sum + Number(b.total_price || 0), 0)
                                                 return (

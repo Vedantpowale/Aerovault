@@ -343,7 +343,7 @@ export function FlightManagementDialog({ flight, airlines }: { flight?: any, air
                                             <SelectTrigger><SelectValue placeholder="Select Airline" /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {airlines.map(a => (
+                                            {airlines.filter(a => a.airline_id).map(a => (
                                                 <SelectItem key={a.id} value={a.airline_id}>{a.company?.company_name || a.email}</SelectItem>
                                             ))}
                                         </SelectContent>
