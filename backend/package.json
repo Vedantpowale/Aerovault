@@ -2,11 +2,11 @@
   "name": "aerovault-backend",
   "version": "1.0.0",
   "description": "Aerovault backend server",
-  "main": "server.js",
+  "main": "index.js",
   "type": "module",
 
   "scripts": {
-    "start": "node server.js",
+    "start": "node index.js",
     "build": "echo Build completed"
   },
 
