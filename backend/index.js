@@ -14,7 +14,8 @@ Allow requests from:
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://aerovault.vercel.app"
+  "https://aerovault.vercel.app",
+  "https://aerovault-nine.vercel.app"
 ];
 
 app.use(cors({
