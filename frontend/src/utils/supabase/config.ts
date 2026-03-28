@@ -1,4 +1,4 @@
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const HARDCODED_SUPABASE_URL = "https://gdiyntvehjivqttzngaj.supabase.co";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 function assertEnv(name: string, value: string | undefined): string {
@@ -27,9 +27,7 @@ function assertValidSupabaseUrl(url: string): string {
 }
 
 export function getSupabaseConfig() {
-  const url = assertValidSupabaseUrl(
-    assertEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL)
-  );
+  const url = assertValidSupabaseUrl(HARDCODED_SUPABASE_URL);
   const anonKey = assertEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", SUPABASE_ANON_KEY);
 
   return { url, anonKey };
