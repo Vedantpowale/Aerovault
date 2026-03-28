@@ -40,3 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 *.zip
+<<<<<<< HEAD
+=======
+
+
+!.env.example
+>>>>>>> origin/main
