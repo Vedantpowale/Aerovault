@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import GlobalBlurredBackground from "@/components/global-blurred-background";
 import { AivaChatbot } from "@/components/aiva-chatbot";
-import { Analytics } from "@vercel/analytics/react"; // ADDED
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Aerovault",
@@ -23,7 +24,8 @@ export default function RootLayout({
         <GlobalBlurredBackground />
         {children}
         <AivaChatbot />
-        <Analytics /> {/* ADDED */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
