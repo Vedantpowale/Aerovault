@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
+  "name": "flight-booking-system",
+=======
   "name": "aerovault-frontend",
+>>>>>>> origin/main
   "version": "0.1.0",
   "private": true,
   "scripts": {

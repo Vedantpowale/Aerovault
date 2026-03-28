@@ -1,12 +1,25 @@
 {
+<<<<<<< HEAD
+  "name": "aerovault",
+  "private": true,
+=======
   "name": "aerovault-monorepo",
   "private": true,
   "version": "1.0.0",
+>>>>>>> origin/main
   "workspaces": [
     "frontend",
     "backend"
   ],
   "scripts": {
+<<<<<<< HEAD
+    "dev": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "start": "npm run start --workspace frontend",
+    "lint": "npm run lint --workspace frontend",
+    "backend:setup-accounts": "npm run setup-accounts --workspace backend",
+    "backend:seed-roles": "npm run seed-roles --workspace backend"
+=======
     "predev": "node tooling/validate-env.mjs",
     "dev": "concurrently -k -n frontend,backend -c cyan,magenta \"npm run dev -w frontend\" \"npm run dev -w backend\"",
     "prebuild": "node tooling/validate-env.mjs",
@@ -17,5 +30,6 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
+>>>>>>> origin/main
   }
 }
