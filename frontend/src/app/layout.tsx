@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import GlobalBlurredBackground from "@/components/global-blurred-background";
 import { AivaChatbot } from "@/components/aiva-chatbot";
-import { inject } from "@vercel/analytics"; // ADD THIS
+import { Analytics } from "@vercel/analytics/react"; // ADDED
 
 export const metadata: Metadata = {
   title: "Aerovault",
@@ -14,9 +14,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
-  inject(); // ADD THIS
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -26,6 +23,7 @@ export default function RootLayout({
         <GlobalBlurredBackground />
         {children}
         <AivaChatbot />
+        <Analytics /> {/* ADDED */}
       </body>
     </html>
   );
