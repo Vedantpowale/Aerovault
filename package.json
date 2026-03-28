@@ -2,13 +2,14 @@
   "name": "aerovault",
   "version": "1.0.0",
   "private": true,
-
   "scripts": {
     "build": "echo Build completed",
     "start": "node backend/server.js"
   },
-
   "engines": {
     "node": "22.x"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
   }
 }
