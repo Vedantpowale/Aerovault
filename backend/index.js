@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 
@@ -13,23 +14,44 @@ Allow requests from:
 */
 
 const allowedOrigins = [
+  "http://localhost:3000",
   "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
   "https://aerovault.vercel.app",
-  "https://aerovault-nine.vercel.app"
+  "https://aerovault-nine.vercel.app",
+  "https://aerovault.onrender.com"
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
+const envAllowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS not allowed"));
-    }
-  },
-  credentials: true
-}));
+const normalizedAllowedOrigins = new Set([...allowedOrigins, ...envAllowedOrigins]);
+
+function isVercelPreviewOrigin(origin) {
+  return /^https:\/\/aerovault(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(origin);
+}
+
+function isOriginAllowed(origin) {
+  return normalizedAllowedOrigins.has(origin) || isVercelPreviewOrigin(origin);
+}
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+
+      if (isOriginAllowed(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS not allowed"));
+    },
+    credentials: true
+  })
+);
 
 app.use(express.json());
 
@@ -81,6 +103,23 @@ app.get("/api/flights", (req, res) => {
   ];
 
   res.json(flights);
+});
+
+/*
+==============================
+CORS ERROR HANDLER
+==============================
+*/
+
+app.use((err, req, res, next) => {
+  if (err && err.message === "CORS not allowed") {
+    return res.status(403).json({
+      error: "CORS not allowed",
+      origin: req.headers.origin || null
+    });
+  }
+
+  return next(err);
 });
 
 /*

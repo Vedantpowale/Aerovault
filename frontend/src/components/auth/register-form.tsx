@@ -19,23 +19,29 @@ export function RegisterForm() {
 
     const handleRegister = async () => {
         setLoading(true)
-        const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
-                    full_name: fullName,
-                    role: 'user', // Default role
+        try {
+            const { error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        full_name: fullName,
+                        role: 'user', // Default role
+                    },
                 },
-            },
-        })
+            })
 
-        if (error) {
-            alert(error.message)
+            if (error) {
+                alert(error.message)
+            } else {
+                alert("Registration successful! Please check your email.")
+                router.push('/login')
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Registration failed."
+            alert(message)
+        } finally {
             setLoading(false)
-        } else {
-            alert("Registration successful! Please check your email.")
-            router.push('/login')
         }
     }
 
