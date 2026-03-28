@@ -1,44 +1,19 @@
 {
   "name": "aerovault-backend",
-  "version": "0.1.0",
-  "private": true,
-<<<<<<< HEAD
-  "description": "Backend services and account bootstrap scripts for Aerovault",
-  "scripts": {
-    "setup-accounts": "node src/services/account-bootstrap/setup-accounts.js",
-    "seed-roles": "node src/services/account-bootstrap/seed-roles.js",
-    "create-demo-user": "node src/services/account-bootstrap/create-demo-user.js",
-    "verify-login": "node src/services/account-bootstrap/verify-login.js",
-    "build": "tsc -p tsconfig.json"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.93.1",
-    "dotenv": "^17.2.3"
-  },
-  "type": "commonjs"
-=======
+  "version": "1.0.0",
+  "description": "Aerovault backend server",
+  "main": "server.js",
   "type": "module",
+
   "scripts": {
-    "dev": "nodemon --watch src --ext ts --exec tsx src/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
-    "seed:accounts": "node scripts/setup-accounts.js",
-    "seed:roles": "node scripts/seed-roles.js",
-    "seed:demo-user": "node scripts/create-demo-user.js",
-    "verify:login": "node scripts/verify-login.js"
+    "start": "node server.js",
+    "build": "echo Build completed"
   },
+
   "dependencies": {
-    "@google/genai": "^1.46.0",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^4.21.2"
-  },
-  "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^4.17.23",
-    "nodemon": "^3.1.10",
-    "tsx": "^4.20.5",
-    "typescript": "^5.9.3"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "@supabase/supabase-js": "^2.43.4"
   }
->>>>>>> origin/main
 }
