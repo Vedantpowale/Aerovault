@@ -224,6 +224,7 @@ function detectIntent(message: string) {
     "list flights",
     "show flights",
     "search",
+    "schedule",
     "available",
     "travel",
     "trip",
@@ -256,6 +257,7 @@ function detectIntent(message: string) {
 
   const asksBookAction = includesAny(text, [
     "book",
+    "schedule",
     "reserve",
     "booking",
     "बुक",
@@ -371,6 +373,36 @@ function getLastMentionedRoute(messages: ChatMessage[], skipMessage?: string) {
   }
 
   return null;
+}
+
+function isRouteFollowUpMessage(message: string) {
+  const normalized = normalizeDigits(message.toLowerCase());
+  return includesAny(normalized, [
+    "same",
+    "same route",
+    "check",
+    "show",
+    "what do we have",
+    "whatever we have",
+    "for today",
+    "for tomorrow",
+    "today",
+    "tomorrow",
+    "morning",
+    "afternoon",
+    "evening",
+    "night",
+    "same for today",
+    "same for tomorrow",
+    "same for evening",
+    "उसी",
+    "वही",
+    "आज",
+    "कल",
+    "सुबह",
+    "शाम",
+    "रात",
+  ]);
 }
 
 function normalizeLocation(value: string | undefined | null) {
@@ -792,8 +824,8 @@ function buildTimeReply(lang: Language) {
   const now = getNowContext();
   return pick(
     lang,
-    `Current date/time (${now.timezone}): ${now.date}, ${now.time}.`,
-    `अभी की तारीख/समय (${now.timezone}): ${now.date}, ${now.time}।`
+    `**Today** is ${now.date}.\n**Current time** (${now.timezone}) is ${now.time}.`,
+    `**आज** ${now.date} है।\n**अभी का समय** (${now.timezone}) ${now.time} है।`
   );
 }
 
@@ -1434,26 +1466,30 @@ You can view it in My Tickets.`,
   };
 }
 
-function buildGreetingReply(lang: Language) {
+function buildGreetingReply(lang: Language, userContext: CurrentUserContext) {
   const now = getNowContext();
+  const metadata = userContext.authUser?.user_metadata || {};
+  const fullName = userContext.profile?.full_name || metadata.full_name || "there";
   return pick(
     lang,
-    `Hi, I’m **AIVA**.
+    `Hi **${fullName}**, I’m **AIVA**.
 
 I can help with:
 - Flight search
 - Ticket booking
 - Flight status
 
-Current ${now.timezone} time: ${now.time}.`,
-    `नमस्ते, मैं **AIVA** हूं।
+**Today:** ${now.date}
+**Current ${now.timezone} time:** ${now.time}.`,
+    `${fullName}, नमस्ते। मैं **AIVA** हूं।
 
 मैं इन चीज़ों में मदद कर सकती हूं:
 - Flight search
 - Ticket booking
 - Flight status
 
-अभी ${now.timezone} समय: ${now.time}।`
+**आज:** ${now.date}
+**अभी ${now.timezone} समय:** ${now.time}।`
   );
 }
 
@@ -1466,10 +1502,20 @@ async function buildReply(
   language: Language
 ): Promise<ReplyResult> {
   const intent = detectIntent(message);
+  const fallbackRoute = getLastMentionedRoute(messages, message);
+  const normalizedMessage = normalizeDigits(message.toLowerCase());
+  const explicitTimeQuestion = includesAny(normalizedMessage, [
+    "what is today",
+    "what day",
+    "current time",
+    "current date",
+    "time now",
+    "date now",
+  ]);
 
   if (intent.greetingOnly) {
     return {
-      reply: buildGreetingReply(language),
+      reply: buildGreetingReply(language, userContext),
       usedModel: false,
       matchedKnowledge: [],
       language,
@@ -1494,6 +1540,24 @@ async function buildReply(
         bookingCreated: bookingResult.bookingCreated,
       };
     }
+  }
+
+  if (
+    fallbackRoute &&
+    isRouteFollowUpMessage(message) &&
+    !explicitTimeQuestion &&
+    !intent.asksFlights &&
+    !intent.asksFlightStatus &&
+    !intent.asksBookings &&
+    !intent.asksProfile
+  ) {
+    return {
+      reply: buildFlightsReply(message, flights, language, fallbackRoute),
+      usedModel: false,
+      matchedKnowledge: [],
+      language,
+      bookingCreated: false,
+    };
   }
 
   if (intent.asksTimeOrDate) {
@@ -1540,7 +1604,6 @@ async function buildReply(
   }
 
   if (intent.asksFlights) {
-    const fallbackRoute = getLastMentionedRoute(messages, message);
     return {
       reply: buildFlightsReply(message, flights, language, fallbackRoute),
       usedModel: false,

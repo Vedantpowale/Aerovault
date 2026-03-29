@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { motion } from "framer-motion";
 
 import { FlightOptionCard, ParsedFlightOption } from "@/components/aiva/flight-option-card";
 
@@ -107,8 +108,15 @@ export function AivaMessageContent({ text }: { text: string }) {
       ) : null}
 
       <div className="space-y-2">
-        {parsedFlightMessage.options.map((option) => (
-          <FlightOptionCard key={`${option.flightNumber}-${option.index}`} option={option} />
+        {parsedFlightMessage.options.map((option, index) => (
+          <motion.div
+            key={`${option.flightNumber}-${option.index}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, delay: index * 0.04 }}
+          >
+            <FlightOptionCard option={option} />
+          </motion.div>
         ))}
       </div>
 
