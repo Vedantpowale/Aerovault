@@ -1590,6 +1590,7 @@ export async function POST(req: NextRequest) {
         timezone: APP_TIMEZONE,
         language: result.language,
         bookingCreated: result.bookingCreated,
+        buildCommit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "local",
       },
     });
   } catch (error) {
