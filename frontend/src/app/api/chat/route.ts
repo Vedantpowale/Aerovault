@@ -48,6 +48,8 @@ You are professional, concise, helpful, and customer-first.
 Aerovault itself is the flight search and booking platform.
 Never direct users to external websites or third-party booking apps.
 When users ask for flights, availability, or booking, guide them to complete it inside Aerovault.
+Use clean Markdown formatting for readability (short paragraphs, bullets, numbered lists when useful).
+Do not claim an airport is non-operational unless this is explicitly grounded in provided data.
 Always prioritize grounded data provided in context over assumptions.
 If a requested value is unknown, say that clearly and offer the next best step.
 Keep responses compact and actionable.
@@ -222,6 +224,8 @@ function detectIntent(message: string) {
     "available",
     "travel",
     "trip",
+    "airport",
+    "nmia",
     "from ",
     " to ",
     " se ",
@@ -357,20 +361,78 @@ function getLastMentionedRoute(messages: ChatMessage[], skipMessage?: string) {
 }
 
 function normalizeLocation(value: string | undefined | null) {
-  return (value ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0900-\u097F\s]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const LOCATION_ALIASES: Array<[string, string]> = [
+  ["navi mumbai international airport", "navi mumbai"],
+  ["nmia", "navi mumbai"],
+  ["navi mumbai", "navi mumbai"],
+  ["chhatrapati shivaji maharaj international airport", "mumbai"],
+  ["csmia", "mumbai"],
+  ["bom", "mumbai"],
+  ["ahemdabad", "ahmedabad"],
+  ["ahmedbad", "ahmedabad"],
+  ["amd", "ahmedabad"],
+];
+
+function canonicalizeLocation(value: string | undefined | null) {
+  const normalized = normalizeLocation(value);
+  if (!normalized) return "";
+
+  for (const [alias, canonical] of LOCATION_ALIASES) {
+    if (normalized === alias || normalized.includes(alias)) {
+      return canonical;
+    }
+  }
+
+  return normalized;
+}
+
+function getLocationVariants(value: string) {
+  const normalized = normalizeLocation(value);
+  const canonical = canonicalizeLocation(value);
+  const variants = new Set<string>([normalized, canonical]);
+
+  if (canonical === "navi mumbai") {
+    variants.add("mumbai");
+  }
+  if (canonical === "mumbai") {
+    variants.add("navi mumbai");
+  }
+  if (canonical === "ahmedabad") {
+    variants.add("ahemdabad");
+  }
+
+  return Array.from(variants).filter(Boolean);
+}
+
+function locationsMatch(routeValue: string, flightValue: string | undefined | null) {
+  const routeVariants = getLocationVariants(routeValue);
+  const flightNormalized = normalizeLocation(flightValue);
+  const flightCanonical = canonicalizeLocation(flightValue);
+
+  return routeVariants.some(
+    (variant) =>
+      flightNormalized.includes(variant) ||
+      variant.includes(flightNormalized) ||
+      flightCanonical.includes(variant) ||
+      variant.includes(flightCanonical)
+  );
 }
 
 function filterFlightsByRoute(flights: any[], route: { source: string; destination: string } | null) {
   if (!route) return flights;
 
-  const source = normalizeLocation(route.source);
-  const destination = normalizeLocation(route.destination);
-
   return flights.filter((flight) => {
-    const flightSource = normalizeLocation(flight.source);
-    const flightDestination = normalizeLocation(flight.destination);
-
-    return flightSource.includes(source) && flightDestination.includes(destination);
+    return (
+      locationsMatch(route.source, flight.source) &&
+      locationsMatch(route.destination, flight.destination)
+    );
   });
 }
 
@@ -578,8 +640,8 @@ function buildFlightsReply(
   if (!filtered.length && route) {
     return pick(
       lang,
-      `I could not find flights for "${route.source} to ${route.destination}" right now. Try nearby city names or ask for all upcoming flights.`,
-      `"${route.source} से ${route.destination}" के लिए अभी कोई फ्लाइट नहीं मिली। पास के शहर के नाम से कोशिश करें या सभी upcoming flights पूछें।`
+      `I could not find matching flights in current Aerovault data for "${route.source} to ${route.destination}". You can ask me for all upcoming flights too.`,
+      `"${route.source} से ${route.destination}" के लिए Aerovault के current data में matching flights नहीं मिलीं। चाहें तो आप सभी upcoming flights भी पूछ सकते हैं।`
     );
   }
 
@@ -691,6 +753,17 @@ function containsExternalBookingReferral(text: string) {
     "another app",
     "other website",
     "airline website",
+  ]);
+}
+
+function containsUnverifiedAirportClaim(text: string) {
+  const normalized = text.toLowerCase();
+  return includesAny(normalized, [
+    "does not have its own commercial airport",
+    "not commercially operational",
+    "airport is not operational",
+    "not operational yet",
+    "currently not operational",
   ]);
 }
 
@@ -1112,9 +1185,21 @@ function buildGreetingReply(lang: Language) {
   const now = getNowContext();
   return pick(
     lang,
-    `Hi, I’m AIVA. I can check live flights, your logged-in account data, and your bookings.
+    `Hi, I’m **AIVA**.
+
+I can help with:
+- Flight search
+- Ticket booking
+- Flight status
+
 Current ${now.timezone} time: ${now.time}.`,
-    `नमस्ते, मैं AIVA हूं। मैं live flights, आपके account data और bookings में मदद कर सकती हूं।
+    `नमस्ते, मैं **AIVA** हूं।
+
+मैं इन चीज़ों में मदद कर सकती हूं:
+- Flight search
+- Ticket booking
+- Flight status
+
 अभी ${now.timezone} समय: ${now.time}।`
   );
 }
@@ -1229,6 +1314,12 @@ async function buildReply(
   }
 
   let reply = await callOpenAI(messages, relevantKnowledge, userContext, flights, language);
+  if (containsUnverifiedAirportClaim(reply)) {
+    const fallbackRoute =
+      getLastMentionedRoute(messages, message) ?? extractRoute(normalizeDigits(message.toLowerCase()));
+    reply = buildFlightsReply(message, flights, language, fallbackRoute);
+  }
+
   if (containsExternalBookingReferral(reply)) {
     reply = pick(
       language,
