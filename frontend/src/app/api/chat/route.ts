@@ -50,6 +50,7 @@ Never direct users to external websites or third-party booking apps.
 When users ask for flights, availability, or booking, guide them to complete it inside Aerovault.
 Use clean Markdown formatting for readability (short paragraphs, bullets, numbered lists when useful).
 Do not claim an airport is non-operational unless this is explicitly grounded in provided data.
+Do not say you lack real-time flight data when flights context is available in this request.
 Always prioritize grounded data provided in context over assumptions.
 If a requested value is unknown, say that clearly and offer the next best step.
 Keep responses compact and actionable.
@@ -220,6 +221,8 @@ function detectIntent(message: string) {
   const asksFlights = includesAny(text, [
     "flight",
     "flights",
+    "list flights",
+    "show flights",
     "search",
     "available",
     "travel",
@@ -274,7 +277,7 @@ function extractFlightNumber(text: string) {
 function extractPassengerCount(text: string) {
   const normalized = normalizeDigits(text.toLowerCase());
   const explicit = normalized.match(
-    /(\d+)\s*(passenger|passengers|ticket|tickets|seat|seats|यात्री|टिकट|सीट)/i
+    /(\d+)\s*(passenger|passengers|people|person|pax|adult|adults|ticket|tickets|seat|seats|यात्री|टिकट|सीट)/i
   );
 
   if (explicit) {
@@ -369,14 +372,20 @@ function normalizeLocation(value: string | undefined | null) {
 }
 
 const LOCATION_ALIASES: Array<[string, string]> = [
+  ["blr", "bengaluru"],
+  ["bangalore", "bengaluru"],
+  ["bengaluru", "bengaluru"],
+  ["kempegowda international airport", "bengaluru"],
   ["navi mumbai international airport", "navi mumbai"],
   ["nmia", "navi mumbai"],
   ["navi mumbai", "navi mumbai"],
   ["chhatrapati shivaji maharaj international airport", "mumbai"],
   ["csmia", "mumbai"],
+  ["mumbai", "mumbai"],
   ["bom", "mumbai"],
   ["ahemdabad", "ahmedabad"],
   ["ahmedbad", "ahmedabad"],
+  ["ahmedabad", "ahmedabad"],
   ["amd", "ahmedabad"],
 ];
 
@@ -398,14 +407,20 @@ function getLocationVariants(value: string) {
   const canonical = canonicalizeLocation(value);
   const variants = new Set<string>([normalized, canonical]);
 
+  if (canonical === "bengaluru") {
+    variants.add("bangalore");
+    variants.add("blr");
+  }
   if (canonical === "navi mumbai") {
     variants.add("mumbai");
   }
   if (canonical === "mumbai") {
     variants.add("navi mumbai");
+    variants.add("bom");
   }
   if (canonical === "ahmedabad") {
     variants.add("ahemdabad");
+    variants.add("amd");
   }
 
   return Array.from(variants).filter(Boolean);
@@ -448,6 +463,111 @@ function buildFlightLine(flight: any) {
   } | ${formatDateTime(flight.departure_time)} | ₹${flight.price ?? "N/A"} | ${
     flight.status || "unknown"
   } | ${companyName}${seats}`;
+}
+
+function getDateKey(date: Date, timezone = APP_TIMEZONE) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  if (!year || !month || !day) return null;
+  return `${year}-${month}-${day}`;
+}
+
+function extractRequestedTravelDate(text: string) {
+  const normalized = normalizeDigits(text.toLowerCase());
+  const now = new Date();
+
+  if (includesAny(normalized, ["today", "aaj", "आज"])) {
+    return new Date(now);
+  }
+  if (includesAny(normalized, ["tomorrow", "kal", "कल"])) {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  }
+
+  const monthMap: Record<string, number> = {
+    jan: 0,
+    january: 0,
+    feb: 1,
+    february: 1,
+    mar: 2,
+    march: 2,
+    apr: 3,
+    april: 3,
+    may: 4,
+    jun: 5,
+    june: 5,
+    jul: 6,
+    july: 6,
+    aug: 7,
+    august: 7,
+    sep: 8,
+    sept: 8,
+    september: 8,
+    oct: 9,
+    october: 9,
+    nov: 10,
+    november: 10,
+    dec: 11,
+    december: 11,
+  };
+
+  const longDate = normalized.match(
+    /\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\s*(\d{4})?\b/i
+  );
+  if (longDate) {
+    const day = Number.parseInt(longDate[1], 10);
+    const month = monthMap[longDate[2].toLowerCase()];
+    const year = longDate[3] ? Number.parseInt(longDate[3], 10) : now.getFullYear();
+    if (Number.isFinite(day) && Number.isFinite(month) && Number.isFinite(year)) {
+      return new Date(year, month, day);
+    }
+  }
+
+  const slashDate = normalized.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+  if (slashDate) {
+    const day = Number.parseInt(slashDate[1], 10);
+    const month = Number.parseInt(slashDate[2], 10) - 1;
+    let year = slashDate[3] ? Number.parseInt(slashDate[3], 10) : now.getFullYear();
+    if (year < 100) year += 2000;
+    if (Number.isFinite(day) && Number.isFinite(month) && Number.isFinite(year)) {
+      return new Date(year, month, day);
+    }
+  }
+
+  return null;
+}
+
+function filterFlightsByDate(flights: any[], requestedDate: Date | null) {
+  if (!requestedDate) return flights;
+  const requestedKey = getDateKey(requestedDate);
+  if (!requestedKey) return flights;
+
+  return flights.filter((flight) => {
+    const departure = new Date(flight.departure_time);
+    if (Number.isNaN(departure.getTime())) return false;
+    return getDateKey(departure) === requestedKey;
+  });
+}
+
+function filterFlightsBySeats(flights: any[], seatsNeeded: number) {
+  if (!Number.isFinite(seatsNeeded) || seatsNeeded <= 1) return flights;
+
+  return flights.filter((flight) => {
+    const available = Number(flight?.available_seats);
+    if (!Number.isFinite(available)) {
+      return true;
+    }
+    return available >= seatsNeeded;
+  });
 }
 
 async function findRelevantKnowledge(
@@ -635,13 +755,26 @@ function buildFlightsReply(
 
   const text = normalizeDigits(message.toLowerCase());
   const route = extractRoute(text) ?? fallbackRoute ?? null;
+  const requestedDate = extractRequestedTravelDate(text);
+  const requestedSeats = extractPassengerCount(text);
   let filtered = filterFlightsByRoute(flights, route);
+  filtered = filterFlightsByDate(filtered, requestedDate);
+  filtered = filterFlightsBySeats(filtered, requestedSeats);
 
   if (!filtered.length && route) {
+    const fallbackDateLabel = requestedDate
+      ? new Intl.DateTimeFormat("en-IN", { timeZone: APP_TIMEZONE, dateStyle: "medium" }).format(
+          requestedDate
+        )
+      : null;
     return pick(
       lang,
-      `I could not find matching flights in current Aerovault data for "${route.source} to ${route.destination}". You can ask me for all upcoming flights too.`,
-      `"${route.source} से ${route.destination}" के लिए Aerovault के current data में matching flights नहीं मिलीं। चाहें तो आप सभी upcoming flights भी पूछ सकते हैं।`
+      `I could not find matching flights in current Aerovault data for "${route.source} to ${route.destination}"${
+        fallbackDateLabel ? ` on ${fallbackDateLabel}` : ""
+      }. You can ask me for all upcoming flights too.`,
+      `"${route.source} से ${route.destination}" के लिए Aerovault के current data में${
+        fallbackDateLabel ? ` ${fallbackDateLabel} को` : ""
+      } matching flights नहीं मिलीं। चाहें तो आप सभी upcoming flights भी पूछ सकते हैं।`
     );
   }
 
@@ -654,7 +787,7 @@ function buildFlightsReply(
   const selected = filtered.slice(0, 6);
   const lines = selected.map((flight, index) => `${index + 1}. ${buildFlightLine(flight)}`);
 
-  const prefix = route
+  let prefix = route
     ? pick(
         lang,
         `Found ${filtered.length} matching flight(s) for ${route.source} → ${route.destination}.`,
@@ -662,7 +795,31 @@ function buildFlightsReply(
       )
     : pick(lang, `Here are ${selected.length} upcoming flight option(s).`, `यह ${selected.length} upcoming flight options हैं।`);
 
-  return `${prefix}\n${lines.join("\n")}`;
+  if (requestedDate) {
+    const dateLabel = new Intl.DateTimeFormat("en-IN", {
+      timeZone: APP_TIMEZONE,
+      dateStyle: "medium",
+    }).format(requestedDate);
+    prefix = `${prefix} ${pick(
+      lang,
+      `Date filter: ${dateLabel}.`,
+      `Date filter: ${dateLabel}।`
+    )}`;
+  }
+
+  if (requestedSeats > 1) {
+    prefix = `${prefix} ${pick(
+      lang,
+      `Seats filter: ${requestedSeats} passenger(s).`,
+      `Seats filter: ${requestedSeats} यात्री।`
+    )}`;
+  }
+
+  return `${prefix}\n${lines.join("\n")}\n${pick(
+    lang,
+    "To book now, reply: `Book <flight_number> for <passengers> passengers`.",
+    "अभी बुक करने के लिए जवाब दें: `Book <flight_number> for <passengers> passengers`।"
+  )}`;
 }
 
 function buildFlightStatusReply(message: string, flights: any[], lang: Language) {
@@ -764,6 +921,21 @@ function containsUnverifiedAirportClaim(text: string) {
     "airport is not operational",
     "not operational yet",
     "currently not operational",
+  ]);
+}
+
+function containsCapabilityDenial(text: string) {
+  const normalized = text.toLowerCase();
+  return includesAny(normalized, [
+    "cannot directly book",
+    "can't directly book",
+    "i cannot book",
+    "i can't book",
+    "cannot make direct bookings",
+    "do not have access to real-time",
+    "don't have access to real-time",
+    "cannot access real-time",
+    "as an ai assistant, i do not have access",
   ]);
 }
 
@@ -980,6 +1152,19 @@ async function tryCreateBookingFromMessage(
 ) {
   const flightNumber = extractFlightNumber(message);
   if (!flightNumber) {
+    const route = extractRoute(normalizeDigits(message.toLowerCase()));
+    if (route) {
+      return {
+        handled: true,
+        bookingCreated: false,
+        reply: `${buildFlightsReply(message, flights, lang, route)}\n${pick(
+          lang,
+          "Pick a flight number from this list and I will confirm the booking in chat.",
+          "इस लिस्ट से flight number चुनें, मैं यहीं chat में booking confirm कर दूंगा।"
+        )}`,
+      };
+    }
+
     return {
       handled: true,
       bookingCreated: false,
@@ -1318,6 +1503,20 @@ async function buildReply(
     const fallbackRoute =
       getLastMentionedRoute(messages, message) ?? extractRoute(normalizeDigits(message.toLowerCase()));
     reply = buildFlightsReply(message, flights, language, fallbackRoute);
+  }
+
+  if (containsCapabilityDenial(reply)) {
+    const fallbackRoute =
+      getLastMentionedRoute(messages, message) ?? extractRoute(normalizeDigits(message.toLowerCase()));
+    if (intent.asksBookAction || intent.asksFlights) {
+      reply = buildFlightsReply(message, flights, language, fallbackRoute);
+    } else {
+      reply = pick(
+        language,
+        "I can help you directly inside Aerovault for flight search, booking, and ticket help.",
+        "मैं Aerovault के अंदर ही flight search, booking और ticket help कर सकता हूं।"
+      );
+    }
   }
 
   if (containsExternalBookingReferral(reply)) {
