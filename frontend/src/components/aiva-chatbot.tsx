@@ -3,8 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Sparkles } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { AivaMessageContent } from "@/components/aiva/aiva-message-content";
 
 type Message = {
   id: string;
@@ -25,6 +24,7 @@ export function AivaChatbot() {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [buildCommit, setBuildCommit] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -64,6 +64,9 @@ export function AivaChatbot() {
       }
 
       const data = await response.json();
+      if (data?.meta?.buildCommit) {
+        setBuildCommit(String(data.meta.buildCommit));
+      }
       
       const newAivaMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -122,7 +125,10 @@ export function AivaChatbot() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-white bg-clip-text text-transparent bg-gradient-to-r from-blue-200 to-amber-200">AIVA Assistant</h3>
-                  <p className="text-xs text-blue-200/70">AeroVault AI Support</p>
+                  <p className="text-xs text-blue-200/70">
+                    AeroVault AI Support
+                    {buildCommit ? ` • ${buildCommit}` : ""}
+                  </p>
                 </div>
               </div>
               <button 
@@ -151,32 +157,7 @@ export function AivaChatbot() {
                     {msg.sender === "user" ? (
                       msg.text
                     ) : (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
-                          ul: ({ children }) => <ul className="mb-2 list-disc pl-4 space-y-1">{children}</ul>,
-                          ol: ({ children }) => <ol className="mb-2 list-decimal pl-4 space-y-1">{children}</ol>,
-                          li: ({ children }) => <li>{children}</li>,
-                          strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-                          em: ({ children }) => <em className="italic">{children}</em>,
-                          code: ({ children }) => (
-                            <code className="rounded bg-slate-800/70 px-1.5 py-0.5 text-xs text-blue-100">{children}</code>
-                          ),
-                          a: ({ href, children }) => (
-                            <a
-                              href={href}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-blue-200 underline underline-offset-2"
-                            >
-                              {children}
-                            </a>
-                          ),
-                        }}
-                      >
-                        {msg.text}
-                      </ReactMarkdown>
+                      <AivaMessageContent text={msg.text} />
                     )}
                   </div>
                 </motion.div>

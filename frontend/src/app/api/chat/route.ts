@@ -236,10 +236,20 @@ function detectIntent(message: string) {
     "jana",
     "jaana",
     "cheapest",
+    "morning",
+    "afternoon",
+    "evening",
+    "night",
+    "early morning",
+    "late night",
     "उड़ान",
     "फ्लाइट",
     "उपलब्ध",
     "सस्ती",
+    "सुबह",
+    "दोपहर",
+    "शाम",
+    "रात",
     "से ",
     " तक",
   ]);
@@ -570,6 +580,54 @@ function filterFlightsBySeats(flights: any[], seatsNeeded: number) {
   });
 }
 
+type DayPart = "morning" | "afternoon" | "evening" | "night" | null;
+
+function extractDayPart(text: string): DayPart {
+  const normalized = normalizeDigits(text.toLowerCase());
+
+  if (includesAny(normalized, ["morning", "early morning", "सुबह"])) {
+    return "morning";
+  }
+  if (includesAny(normalized, ["afternoon", "दोपहर"])) {
+    return "afternoon";
+  }
+  if (includesAny(normalized, ["evening", "शाम"])) {
+    return "evening";
+  }
+  if (includesAny(normalized, ["night", "late night", "रात"])) {
+    return "night";
+  }
+
+  return null;
+}
+
+function matchesDayPart(date: Date, dayPart: DayPart) {
+  if (!dayPart) return true;
+
+  const hour = Number(
+    new Intl.DateTimeFormat("en-IN", {
+      timeZone: APP_TIMEZONE,
+      hour: "2-digit",
+      hour12: false,
+    }).format(date)
+  );
+
+  if (dayPart === "morning") return hour >= 5 && hour < 12;
+  if (dayPart === "afternoon") return hour >= 12 && hour < 17;
+  if (dayPart === "evening") return hour >= 17 && hour < 22;
+  return hour >= 22 || hour < 5;
+}
+
+function filterFlightsByDayPart(flights: any[], dayPart: DayPart) {
+  if (!dayPart) return flights;
+
+  return flights.filter((flight) => {
+    const departure = new Date(flight.departure_time);
+    if (Number.isNaN(departure.getTime())) return false;
+    return matchesDayPart(departure, dayPart);
+  });
+}
+
 async function findRelevantKnowledge(
   supabase: Awaited<ReturnType<typeof createClient>>,
   query: string
@@ -757,9 +815,11 @@ function buildFlightsReply(
   const route = extractRoute(text) ?? fallbackRoute ?? null;
   const requestedDate = extractRequestedTravelDate(text);
   const requestedSeats = extractPassengerCount(text);
+  const requestedDayPart = extractDayPart(text);
   let filtered = filterFlightsByRoute(flights, route);
   filtered = filterFlightsByDate(filtered, requestedDate);
   filtered = filterFlightsBySeats(filtered, requestedSeats);
+  filtered = filterFlightsByDayPart(filtered, requestedDayPart);
 
   if (!filtered.length && route) {
     const fallbackDateLabel = requestedDate
@@ -812,6 +872,14 @@ function buildFlightsReply(
       lang,
       `Seats filter: ${requestedSeats} passenger(s).`,
       `Seats filter: ${requestedSeats} यात्री।`
+    )}`;
+  }
+
+  if (requestedDayPart) {
+    prefix = `${prefix} ${pick(
+      lang,
+      `Time filter: ${requestedDayPart}.`,
+      `Time filter: ${requestedDayPart}।`
     )}`;
   }
 
